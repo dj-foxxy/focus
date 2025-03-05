@@ -15,28 +15,22 @@ namespace focus
     class TextEdit : public QPlainTextEdit
     {
       public:
-        explicit TextEdit(QWidget* const parent) : QPlainTextEdit(parent)
+        TextEdit(
+            QWidget* const parent,
+            QFont const& font,
+            QFontMetrics const& font_metrics
+        )
+            : QPlainTextEdit(parent),
+              m_size_hint{60 * font_metrics.averageCharWidth(), 0}
         {
             setContentsMargins(0, 0, 0, 0);
-
-            // Font
-            {
-                auto const font = QFont{"Comic Code", 14, QFont::Bold};
-                setFont(font);
-
-                auto const font_metric = QFontMetrics{font};
-                m_size_hint = QSize{60 * font_metric.averageCharWidth(), 0};
-            }
-
             setFrameStyle(QFrame::NoFrame);
+            setFont(font);
 
-            // Palette
-            {
-                auto p = palette();
-                p.setColor(QPalette::Base, Qt::transparent);
-                p.setColor(QPalette::Text, Qt::white);
-                setPalette(p);
-            }
+            auto p = palette();
+            p.setColor(QPalette::Base, Qt::transparent);
+            p.setColor(QPalette::Text, Qt::white);
+            setPalette(p);
         }
 
         virtual QSize sizeHint() const override
@@ -52,20 +46,22 @@ namespace focus
 auto main(int argc, char** const argv) -> int
 {
     auto app = QApplication{argc, argv};
+
     auto* const window = new QWidget{};
     auto p = window->palette();
     p.setColor(QPalette::Window, QColor{0x2c3e4c});
     window->setPalette(p);
+
     auto* const layout = new QVBoxLayout{window};
-    {
-        auto const font = QFont{"Comic Code", 14, QFont::Bold};
-        auto const font_metric = QFontMetrics{font};
-        layout->setContentsMargins(
-            0, font_metric.height(), 0, font_metric.height()
-        );
-    }
-    auto* const txt = new focus::TextEdit{window};
+    auto const font = QFont{"Comic Code", 14, QFont::Bold};
+    auto const font_metrics = QFontMetrics{font};
+    auto const font_height = font_metrics.height();
+    layout->setContentsMargins(0, font_height, 0, font_height);
+
+    auto* const txt = new focus::TextEdit{window, font, font_metrics};
     layout->addWidget(txt, 1, Qt::AlignHCenter);
+
     window->show();
     app.exec();
+    return 0;
 }
