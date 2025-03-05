@@ -63,6 +63,16 @@ auto main(int argc, char** const argv) -> int
     layout->setContentsMargins(0, font_height, 0, font_height);
 
     auto* const txt = new focus::TextEdit{window, font, font_metrics};
+    {
+        auto* const clipboard = app.clipboard();
+        auto* const mimeData = clipboard->mimeData(QClipboard::Selection);
+
+        if (mimeData->hasText())
+        {
+            txt->clear();
+            txt->setPlainText(mimeData->text());
+        }
+    }
     layout->addWidget(txt, 1, Qt::AlignHCenter);
 
     auto* const import_shortcut = new QShortcut{QKeySequence{Qt::Key_F5}, txt};
