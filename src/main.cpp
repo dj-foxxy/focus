@@ -1,3 +1,5 @@
+#include "qobject.h"
+#include "qshortcut.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QColor>
@@ -13,6 +15,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <Qt>
+#include <memory>
+#include <unistd.h>
 
 namespace focus
 {
@@ -21,10 +25,11 @@ namespace focus
       public:
         TextEdit(
             QWidget* const parent,
+            QClipboard* const clipboard,
             QFont const& font,
             QFontMetrics const& font_metrics
         )
-            : QPlainTextEdit(parent),
+            : QPlainTextEdit(parent), m_clipboard(clipboard),
               m_size_hint{60 * font_metrics.averageCharWidth(), 0}
         {
             setContentsMargins(0, 0, 0, 0);
@@ -42,60 +47,107 @@ namespace focus
             return m_size_hint;
         }
 
+        auto set_text_from_selection() -> void
+        {
+            auto* const mimeData = m_clipboard->mimeData(QClipboard::Selection);
+
+            if (mimeData->hasText())
+            {
+                clear();
+                setPlainText(mimeData->text());
+            }
+        }
+
       private:
+        QClipboard* const m_clipboard;
         QSize m_size_hint;
     };
+
+    auto tts() -> void
+    {
+        if (fork() == 0)
+        {
+            execlp("mouth", "mouth", nullptr);
+        }
+    }
+
+    auto stop_tts() noexcept -> void
+    {
+        if (fork() == 0)
+        {
+            execlp("mouth", "mouth", "stop", nullptr);
+        }
+    }
 } // namespace focus
 
 auto main(int argc, char** const argv) -> int
 {
     auto app = QApplication{argc, argv};
+    auto* const clipboard = app.clipboard();
 
-    auto* const window = new QWidget{};
+    auto const window = std::make_unique<QWidget>();
+    window->setWindowTitle("Focus");
     auto p = window->palette();
     p.setColor(QPalette::Window, QColor{0x2c3e4c});
     window->setPalette(p);
+    window->show();
 
-    auto* const layout = new QVBoxLayout{window};
     auto const font = QFont{"Delius", 14, QFont::Bold};
     auto const font_metrics = QFontMetrics{font};
     auto const font_height = font_metrics.height();
+
+    auto* const layout = new QVBoxLayout{window.get()};
     layout->setContentsMargins(0, font_height, 0, font_height);
 
-    auto* const txt = new focus::TextEdit{window, font, font_metrics};
-    {
-        auto* const clipboard = app.clipboard();
-        auto* const mimeData = clipboard->mimeData(QClipboard::Selection);
+    auto* const text_edit =
+        new focus::TextEdit{window.get(), clipboard, font, font_metrics};
+    layout->addWidget(text_edit, 1, Qt::AlignHCenter);
 
-        if (mimeData->hasText())
-        {
-            txt->clear();
-            txt->setPlainText(mimeData->text());
+    // Import
+    QObject::connect(
+        new QShortcut{QKeySequence{Qt::Key_F5}, text_edit},
+        &QShortcut::activated,
+        [&text_edit]() {
+            text_edit->set_text_from_selection();
         }
-    }
-    layout->addWidget(txt, 1, Qt::AlignHCenter);
+    );
 
-    auto* const import_shortcut = new QShortcut{QKeySequence{Qt::Key_F5}, txt};
+    // Say
+    QObject::connect(
+        new QShortcut{QKeySequence{Qt::Key_F1}, text_edit},
+        &QShortcut::activated,
+        [&]() {
+            auto text = text_edit->textCursor().selectedText();
 
-    QObject::connect(import_shortcut, &QShortcut::activated, [&]() {
-        auto* const clipboard = app.clipboard();
-        auto* const mimeData = clipboard->mimeData(QClipboard::Selection);
+            if (text.isEmpty())
+            {
+                text = text_edit->toPlainText();
+            }
 
-        if (mimeData->hasText())
-        {
-            txt->clear();
-            txt->setPlainText(mimeData->text());
+            if (!text.isEmpty())
+            {
+                clipboard->setText(text, QClipboard::Selection);
+                focus::tts();
+            }
         }
-    });
+    );
 
-    auto* const export_shortcut = new QShortcut{QKeySequence{Qt::Key_F6}, txt};
+    // Stop
+    QObject::connect(
+        new QShortcut{QKeySequence{Qt::Key_F2}, text_edit},
+        &QShortcut::activated,
+        focus::stop_tts
+    );
 
-    QObject::connect(export_shortcut, &QShortcut::activated, [&]() {
-        auto* const clipboard = app.clipboard();
-        clipboard->setText(txt->toPlainText());
-    });
+    // Export
+    QObject::connect(
+        new QShortcut{QKeySequence{Qt::Key_F6}, text_edit},
+        &QShortcut::activated,
+        [&clipboard, &text_edit]() {
+            clipboard->setText(text_edit->toPlainText());
+        }
+    );
 
-    window->show();
     app.exec();
     return 0;
 }
