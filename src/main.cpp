@@ -1,10 +1,7 @@
-#include "qobject.h"
-#include "qshortcut.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QColor>
 #include <QFontMetrics>
-#include <QFrame>
 #include <QMimeData>
 #include <QObject>
 #include <QPalette>
@@ -35,11 +32,7 @@ namespace focus
             setContentsMargins(0, 0, 0, 0);
             setFrameStyle(QFrame::NoFrame);
             setFont(font);
-
-            auto p = palette();
-            p.setColor(QPalette::Base, Qt::transparent);
-            p.setColor(QPalette::Text, Qt::white);
-            setPalette(p);
+            setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         }
 
         virtual QSize sizeHint() const override
@@ -47,20 +40,36 @@ namespace focus
             return m_size_hint;
         }
 
-        auto set_text_from_selection() -> void
+        auto setTextFromClipboard() -> void
         {
-            auto* const mimeData = m_clipboard->mimeData(QClipboard::Selection);
-
-            if (mimeData->hasText())
-            {
-                clear();
-                setPlainText(mimeData->text());
-            }
+            setTextFromClipboardMode(QClipboard::Selection) ||
+                setTextFromClipboardMode(QClipboard::Clipboard);
         }
 
       private:
         QClipboard* const m_clipboard;
         QSize m_size_hint;
+
+        auto setTextFromClipboardMode(QClipboard::Mode const mode) -> bool
+        {
+            auto* const mimeData = m_clipboard->mimeData(mode);
+
+            if (!mimeData->hasText())
+            {
+                return false;
+            }
+
+            auto const text = mimeData->text().trimmed();
+
+            if (text.isEmpty())
+            {
+                return false;
+            }
+
+            clear();
+            setPlainText(text);
+            return true;
+        }
     };
 
     auto tts() -> void
@@ -88,7 +97,14 @@ auto main(int argc, char** const argv) -> int
     auto const window = std::make_unique<QWidget>();
     window->setWindowTitle("Focus");
     auto p = window->palette();
-    p.setColor(QPalette::Window, QColor{0x2c3e4c});
+    auto const bg_color = QColor{0x2c3e4c};
+    auto const fg_color = QColor{0xdaf7a6};
+    p.setColor(QPalette::Base, bg_color);
+    p.setColor(QPalette::Highlight, fg_color);
+    p.setColor(QPalette::HighlightedText, bg_color);
+    p.setColor(QPalette::Text, fg_color);
+    p.setColor(QPalette::Window, bg_color);
+    p.setColor(QPalette::Window, bg_color);
     window->setPalette(p);
     window->show();
 
@@ -97,11 +113,13 @@ auto main(int argc, char** const argv) -> int
     auto const font_height = font_metrics.height();
 
     auto const layout = new QVBoxLayout{window.get()};
-    layout->setContentsMargins(0, font_height, 0, font_height);
+    layout->setContentsMargins(
+        font_height, font_height, font_height, font_height
+    );
 
     auto const text_edit =
         new focus::TextEdit{window.get(), clipboard, font, font_metrics};
-    text_edit->set_text_from_selection();
+    text_edit->setTextFromClipboard();
     layout->addWidget(text_edit, 1, Qt::AlignHCenter);
 
     // Import
@@ -109,7 +127,7 @@ auto main(int argc, char** const argv) -> int
         new QShortcut{QKeySequence{Qt::Key_F5}, text_edit},
         &QShortcut::activated,
         [&text_edit]() {
-            text_edit->set_text_from_selection();
+            text_edit->setTextFromClipboard();
         }
     );
 
