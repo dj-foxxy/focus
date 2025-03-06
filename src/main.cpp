@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QClipboard>
+#include <QtSpell.hpp>
 #include <QColor>
 #include <QFontMetrics>
 #include <QMimeData>
@@ -142,6 +143,10 @@ auto main(int argc, char** const argv) -> int
     text_edit->setFont(font);
     text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     layout->addWidget(text_edit, 1, Qt::AlignHCenter);
+
+    auto checker = QtSpell::TextEditChecker{};
+    checker.setLanguage("en_GB");
+    checker.setTextEdit(text_edit);
 
     // Import
     shortcut(text_edit, Qt::Key_F5, [&text_edit]() {
