@@ -1,3 +1,4 @@
+#include "qnamespace.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QColor>
@@ -15,7 +16,7 @@
 #include <memory>
 #include <unistd.h>
 
-namespace focus
+namespace
 {
     class TextEdit : public QPlainTextEdit
     {
@@ -40,10 +41,20 @@ namespace focus
             return m_size_hint;
         }
 
-        auto setTextFromClipboard() -> void
+        auto setTextFromFirstNonEmptyClipboardMode() -> void
         {
-            setTextFromClipboardMode(QClipboard::Selection) ||
-                setTextFromClipboardMode(QClipboard::Clipboard);
+            setTextFromClipboardSelectionMode() ||
+                setTextFromClipboardClipboardMode();
+        }
+
+        auto setTextFromClipboardClipboardMode() -> bool
+        {
+            return setTextFromClipboardMode(QClipboard::Clipboard);
+        }
+
+        auto setTextFromClipboardSelectionMode() -> bool
+        {
+            return setTextFromClipboardMode(QClipboard::Selection);
         }
 
       private:
@@ -87,7 +98,17 @@ namespace focus
             execlp("mouth", "mouth", "stop", nullptr);
         }
     }
-} // namespace focus
+
+    template <typename F>
+    auto shortcut(QWidget* const parent, Qt::Key const key, F&& func) -> void
+    {
+        QObject::connect(
+            new QShortcut{QKeySequence{key}, parent},
+            &QShortcut::activated,
+            func
+        );
+    }
+} // namespace
 
 auto main(int argc, char** const argv) -> int
 {
@@ -118,54 +139,46 @@ auto main(int argc, char** const argv) -> int
     );
 
     auto const text_edit =
-        new focus::TextEdit{window.get(), clipboard, font, font_metrics};
-    text_edit->setTextFromClipboard();
+        new TextEdit{window.get(), clipboard, font, font_metrics};
+    text_edit->setTextFromFirstNonEmptyClipboardMode();
     layout->addWidget(text_edit, 1, Qt::AlignHCenter);
 
     // Import
-    QObject::connect(
-        new QShortcut{QKeySequence{Qt::Key_F5}, text_edit},
-        &QShortcut::activated,
-        [&text_edit]() {
-            text_edit->setTextFromClipboard();
-        }
-    );
+    shortcut(text_edit, Qt::Key_F5, [&text_edit]() {
+        text_edit->setTextFromFirstNonEmptyClipboardMode();
+    });
+
+    shortcut(text_edit, Qt::Key_F6, [&text_edit]() {
+        text_edit->setTextFromClipboardSelectionMode();
+    });
+
+    shortcut(text_edit, Qt::Key_F7, [&text_edit]() {
+        text_edit->setTextFromClipboardClipboardMode();
+    });
 
     // Say
-    QObject::connect(
-        new QShortcut{QKeySequence{Qt::Key_F1}, text_edit},
-        &QShortcut::activated,
-        [&]() {
-            auto text = text_edit->textCursor().selectedText();
+    shortcut(text_edit, Qt::Key_F1, [&text_edit, &clipboard]() {
+        auto text = text_edit->textCursor().selectedText();
 
-            if (text.isEmpty())
-            {
-                text = text_edit->toPlainText();
-            }
-
-            if (!text.isEmpty())
-            {
-                clipboard->setText(text, QClipboard::Selection);
-                focus::tts();
-            }
+        if (text.isEmpty())
+        {
+            text = text_edit->toPlainText();
         }
-    );
+
+        if (!text.isEmpty())
+        {
+            clipboard->setText(text, QClipboard::Selection);
+            tts();
+        }
+    });
 
     // Stop
-    QObject::connect(
-        new QShortcut{QKeySequence{Qt::Key_F2}, text_edit},
-        &QShortcut::activated,
-        focus::stop_tts
-    );
+    shortcut(text_edit, Qt::Key_F2, stop_tts);
 
     // Export
-    QObject::connect(
-        new QShortcut{QKeySequence{Qt::Key_F6}, text_edit},
-        &QShortcut::activated,
-        [&clipboard, &text_edit]() {
-            clipboard->setText(text_edit->toPlainText());
-        }
-    );
+    shortcut(text_edit, Qt::Key_F9, [&clipboard, &text_edit]() {
+        clipboard->setText(text_edit->toPlainText());
+    });
 
     app.exec();
     return 0;
