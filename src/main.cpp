@@ -65,7 +65,7 @@ namespace focus
 
     auto tts() -> void
     {
-        if (fork() == 0)
+        if (::fork() == 0)
         {
             execlp("mouth", "mouth", nullptr);
         }
@@ -73,7 +73,7 @@ namespace focus
 
     auto stop_tts() noexcept -> void
     {
-        if (fork() == 0)
+        if (::fork() == 0)
         {
             execlp("mouth", "mouth", "stop", nullptr);
         }
@@ -83,7 +83,7 @@ namespace focus
 auto main(int argc, char** const argv) -> int
 {
     auto app = QApplication{argc, argv};
-    auto* const clipboard = app.clipboard();
+    auto const clipboard = app.clipboard();
 
     auto const window = std::make_unique<QWidget>();
     window->setWindowTitle("Focus");
@@ -96,11 +96,12 @@ auto main(int argc, char** const argv) -> int
     auto const font_metrics = QFontMetrics{font};
     auto const font_height = font_metrics.height();
 
-    auto* const layout = new QVBoxLayout{window.get()};
+    auto const layout = new QVBoxLayout{window.get()};
     layout->setContentsMargins(0, font_height, 0, font_height);
 
-    auto* const text_edit =
+    auto const text_edit =
         new focus::TextEdit{window.get(), clipboard, font, font_metrics};
+    text_edit->set_text_from_selection();
     layout->addWidget(text_edit, 1, Qt::AlignHCenter);
 
     // Import
