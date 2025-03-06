@@ -1,4 +1,3 @@
-#include "qnamespace.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QColor>
@@ -24,16 +23,11 @@ namespace
         TextEdit(
             QWidget* const parent,
             QClipboard* const clipboard,
-            QFont const& font,
-            QFontMetrics const& font_metrics
+            int const widthHint
         )
             : QPlainTextEdit(parent), m_clipboard(clipboard),
-              m_size_hint{60 * font_metrics.averageCharWidth(), 0}
+              m_size_hint{widthHint, 0}
         {
-            setContentsMargins(0, 0, 0, 0);
-            setFrameStyle(QFrame::NoFrame);
-            setFont(font);
-            setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         }
 
         virtual QSize sizeHint() const override
@@ -113,6 +107,7 @@ namespace
 auto main(int argc, char** const argv) -> int
 {
     auto app = QApplication{argc, argv};
+    app.setCursorFlashTime(0);
     auto const clipboard = app.clipboard();
 
     auto const window = std::make_unique<QWidget>();
@@ -138,9 +133,14 @@ auto main(int argc, char** const argv) -> int
         font_height, font_height, font_height, font_height
     );
 
-    auto const text_edit =
-        new TextEdit{window.get(), clipboard, font, font_metrics};
+    auto const text_edit = new TextEdit{
+        window.get(), clipboard, 60 * font_metrics.averageCharWidth()
+    };
     text_edit->setTextFromFirstNonEmptyClipboardMode();
+    text_edit->setContentsMargins(0, 0, 0, 0);
+    text_edit->setFrameStyle(QFrame::NoFrame);
+    text_edit->setFont(font);
+    text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     layout->addWidget(text_edit, 1, Qt::AlignHCenter);
 
     // Import
@@ -158,11 +158,11 @@ auto main(int argc, char** const argv) -> int
 
     // Say
     shortcut(text_edit, Qt::Key_F1, [&text_edit, &clipboard]() {
-        auto text = text_edit->textCursor().selectedText();
+        auto text = text_edit->textCursor().selectedText().trimmed();
 
         if (text.isEmpty())
         {
-            text = text_edit->toPlainText();
+            text = text_edit->toPlainText().trimmed();
         }
 
         if (!text.isEmpty())
@@ -177,9 +177,8 @@ auto main(int argc, char** const argv) -> int
 
     // Export
     shortcut(text_edit, Qt::Key_F9, [&clipboard, &text_edit]() {
-        clipboard->setText(text_edit->toPlainText());
+        clipboard->setText(text_edit->toPlainText().trimmed());
     });
 
-    app.exec();
-    return 0;
+    return app.exec();
 }
