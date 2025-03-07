@@ -1,6 +1,5 @@
 #include <QApplication>
 #include <QClipboard>
-#include <QtSpell.hpp>
 #include <QColor>
 #include <QFontMetrics>
 #include <QMimeData>
@@ -13,6 +12,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <Qt>
+#include <QtSpell.hpp>
 #include <memory>
 #include <unistd.h>
 
@@ -21,13 +21,8 @@ namespace
     class TextEdit : public QPlainTextEdit
     {
       public:
-        TextEdit(
-            QWidget* const parent,
-            QClipboard* const clipboard,
-            int const widthHint
-        )
-            : QPlainTextEdit(parent), m_clipboard(clipboard),
-              m_size_hint{widthHint, 0}
+        TextEdit(QWidget* const parent, int const widthHint)
+            : QPlainTextEdit(parent), m_size_hint{widthHint, 0}
         {
         }
 
@@ -36,27 +31,40 @@ namespace
             return m_size_hint;
         }
 
-        auto setTextFromFirstNonEmptyClipboardMode() -> void
+      private:
+        QSize m_size_hint;
+    };
+
+    class ClipboardActions
+    {
+      public:
+        ClipboardActions(TextEdit* const textEdit, QClipboard* const clipboard)
+            : m_textEdit{textEdit}, m_clipboard{clipboard}
+        {
+        }
+
+        auto setTextFromFirstNonEmptyClipboardMode() const -> void
         {
             setTextFromClipboardSelectionMode() ||
                 setTextFromClipboardClipboardMode();
         }
 
-        auto setTextFromClipboardClipboardMode() -> bool
+        auto setTextFromClipboardClipboardMode() const -> bool
         {
             return setTextFromClipboardMode(QClipboard::Clipboard);
         }
 
-        auto setTextFromClipboardSelectionMode() -> bool
+        auto setTextFromClipboardSelectionMode() const -> bool
         {
             return setTextFromClipboardMode(QClipboard::Selection);
         }
 
       private:
+        TextEdit* const m_textEdit;
         QClipboard* const m_clipboard;
-        QSize m_size_hint;
 
-        auto setTextFromClipboardMode(QClipboard::Mode const mode) -> bool
+        [[nodiscard]]
+        auto setTextFromClipboardMode(QClipboard::Mode const mode) const -> bool
         {
             auto* const mimeData = m_clipboard->mimeData(mode);
 
@@ -72,8 +80,8 @@ namespace
                 return false;
             }
 
-            clear();
-            setPlainText(text);
+            m_textEdit->clear();
+            m_textEdit->setPlainText(text);
             return true;
         }
     };
@@ -103,6 +111,7 @@ namespace
             func
         );
     }
+
 } // namespace
 
 auto main(int argc, char** const argv) -> int
@@ -134,31 +143,30 @@ auto main(int argc, char** const argv) -> int
         font_height, font_height, font_height, font_height
     );
 
-    auto const text_edit = new TextEdit{
-        window.get(), clipboard, 60 * font_metrics.averageCharWidth()
-    };
-    text_edit->setTextFromFirstNonEmptyClipboardMode();
+    auto const text_edit =
+        new TextEdit{window.get(), 60 * font_metrics.averageCharWidth()};
     text_edit->setContentsMargins(0, 0, 0, 0);
     text_edit->setFrameStyle(QFrame::NoFrame);
     text_edit->setFont(font);
     text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     layout->addWidget(text_edit, 1, Qt::AlignHCenter);
+    auto const clipboardActions = ClipboardActions{text_edit, clipboard};
 
     auto checker = QtSpell::TextEditChecker{};
     checker.setLanguage("en_GB");
     checker.setTextEdit(text_edit);
 
     // Import
-    shortcut(text_edit, Qt::Key_F5, [&text_edit]() {
-        text_edit->setTextFromFirstNonEmptyClipboardMode();
+    shortcut(text_edit, Qt::Key_F5, [&clipboardActions]() {
+        clipboardActions.setTextFromFirstNonEmptyClipboardMode();
     });
 
-    shortcut(text_edit, Qt::Key_F6, [&text_edit]() {
-        text_edit->setTextFromClipboardSelectionMode();
+    shortcut(text_edit, Qt::Key_F6, [&clipboardActions]() {
+        clipboardActions.setTextFromClipboardSelectionMode();
     });
 
-    shortcut(text_edit, Qt::Key_F7, [&text_edit]() {
-        text_edit->setTextFromClipboardClipboardMode();
+    shortcut(text_edit, Qt::Key_F7, [&clipboardActions]() {
+        clipboardActions.setTextFromClipboardClipboardMode();
     });
 
     // Say
