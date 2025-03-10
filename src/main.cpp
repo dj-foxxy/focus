@@ -63,7 +63,6 @@ namespace
         TextEdit* const m_textEdit;
         QClipboard* const m_clipboard;
 
-        [[nodiscard]]
         auto setTextFromClipboardMode(QClipboard::Mode const mode) const -> bool
         {
             auto* const mimeData = m_clipboard->mimeData(mode);
