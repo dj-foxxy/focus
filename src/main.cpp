@@ -134,47 +134,46 @@ auto main(int argc, char** const argv) -> int
     window->show();
 
     auto const font = QFont{"Delius", 14, QFont::Bold};
-    auto const font_metrics = QFontMetrics{font};
-    auto const font_height = font_metrics.height();
+    auto const fontMetric = QFontMetrics{font};
+    auto const fontHeight = fontMetric.height();
 
     auto const layout = new QVBoxLayout{window.get()};
-    layout->setContentsMargins(
-        font_height, font_height, font_height, font_height
-    );
+    layout->setContentsMargins(fontHeight, fontHeight, fontHeight, fontHeight);
 
-    auto const text_edit =
-        new TextEdit{window.get(), 60 * font_metrics.averageCharWidth()};
-    text_edit->setContentsMargins(0, 0, 0, 0);
-    text_edit->setFrameStyle(QFrame::NoFrame);
-    text_edit->setFont(font);
-    text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    layout->addWidget(text_edit, 1, Qt::AlignHCenter);
-    auto const clipboardActions = ClipboardActions{text_edit, clipboard};
+    auto const textEdit =
+        new TextEdit{window.get(), 60 * fontMetric.averageCharWidth()};
+    textEdit->setContentsMargins(0, 0, 0, 0);
+    textEdit->setFrameStyle(QFrame::NoFrame);
+    textEdit->setFont(font);
+    textEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    layout->addWidget(textEdit, 1, Qt::AlignHCenter);
+    auto const clipboardActions = ClipboardActions{textEdit, clipboard};
+    clipboardActions.setTextFromFirstNonEmptyClipboardMode();
 
     auto checker = QtSpell::TextEditChecker{};
     checker.setLanguage("en_GB");
-    checker.setTextEdit(text_edit);
+    checker.setTextEdit(textEdit);
 
     // Import
-    shortcut(text_edit, Qt::Key_F5, [&clipboardActions]() {
+    shortcut(textEdit, Qt::Key_F5, [&clipboardActions]() {
         clipboardActions.setTextFromFirstNonEmptyClipboardMode();
     });
 
-    shortcut(text_edit, Qt::Key_F6, [&clipboardActions]() {
+    shortcut(textEdit, Qt::Key_F6, [&clipboardActions]() {
         clipboardActions.setTextFromClipboardSelectionMode();
     });
 
-    shortcut(text_edit, Qt::Key_F7, [&clipboardActions]() {
+    shortcut(textEdit, Qt::Key_F7, [&clipboardActions]() {
         clipboardActions.setTextFromClipboardClipboardMode();
     });
 
     // Say
-    shortcut(text_edit, Qt::Key_F1, [&text_edit, &clipboard]() {
-        auto text = text_edit->textCursor().selectedText().trimmed();
+    shortcut(textEdit, Qt::Key_F1, [&textEdit, &clipboard]() {
+        auto text = textEdit->textCursor().selectedText().trimmed();
 
         if (text.isEmpty())
         {
-            text = text_edit->toPlainText().trimmed();
+            text = textEdit->toPlainText().trimmed();
         }
 
         if (!text.isEmpty())
@@ -185,11 +184,11 @@ auto main(int argc, char** const argv) -> int
     });
 
     // Stop
-    shortcut(text_edit, Qt::Key_F2, stop_tts);
+    shortcut(textEdit, Qt::Key_F2, stop_tts);
 
     // Export
-    shortcut(text_edit, Qt::Key_F9, [&clipboard, &text_edit]() {
-        clipboard->setText(text_edit->toPlainText().trimmed());
+    shortcut(textEdit, Qt::Key_F9, [&clipboard, &textEdit]() {
+        clipboard->setText(textEdit->toPlainText().trimmed());
     });
 
     return app.exec();
