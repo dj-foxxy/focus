@@ -1,3 +1,4 @@
+#include "qnamespace.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QColor>
@@ -190,6 +191,14 @@ auto main(int argc, char** const argv) -> int
     shortcut(textEdit, Qt::Key_F9, [&clipboard, &textEdit]() {
         clipboard->setText(textEdit->toPlainText().trimmed());
     });
+
+    QObject::connect(
+        new QShortcut{QKeySequence{Qt::Key_Escape}, window.get()},
+        &QShortcut::activated,
+        [&app]() {
+            app.quit();
+        }
+    );
 
     return app.exec();
 }
